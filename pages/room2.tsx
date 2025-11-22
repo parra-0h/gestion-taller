@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import supabase from '@/lib/db';
 
 interface Vehicle {
     id: number;
@@ -19,20 +20,15 @@ export default function Room2() {
 
     const fetchVehicles = async () => {
         try {
-            const res = await fetch('/api/vehicles?status=arrived');
-            if (!res.ok) {
-                console.error('Failed to fetch vehicles:', res.status);
-                setVehicles([]);
-                return;
-            }
-            const data = await res.json();
-            // Ensure data is an array
-            if (Array.isArray(data)) {
-                setVehicles(data);
-            } else {
-                console.error('Invalid data format:', data);
-                setVehicles([]);
-            }
+            const { data, error } = await supabase
+                .from('vehicles')
+                .select('*')
+                .eq('status', 'arrived')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            setVehicles(data || []);
         } catch (error) {
             console.error('Error fetching vehicles:', error);
             setVehicles([]);
@@ -50,26 +46,35 @@ export default function Room2() {
         if (!selectedVehicle) return;
 
         try {
-            const res = await fetch('/api/works', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            // Create work
+            const { data: workData, error: workError } = await supabase
+                .from('works')
+                .insert([{
                     vehicle_id: selectedVehicle.id,
                     description: workDescription,
                     assigned_bay: assignedBay,
-                }),
-            });
+                    status: 'pending'
+                }])
+                .select()
+                .single();
 
-            if (res.ok) {
-                setMessage('Trabajo asignado correctamente');
-                setSelectedVehicle(null);
-                setWorkDescription('');
-                fetchVehicles();
-            } else {
-                setMessage('Error al asignar trabajo');
-            }
+            if (workError) throw workError;
+
+            // Update vehicle status
+            const { error: vehicleError } = await supabase
+                .from('vehicles')
+                .update({ status: 'working' })
+                .eq('id', selectedVehicle.id);
+
+            if (vehicleError) throw vehicleError;
+
+            setMessage('Trabajo asignado correctamente');
+            setSelectedVehicle(null);
+            setWorkDescription('');
+            fetchVehicles();
         } catch (error) {
-            setMessage('Error de conexión');
+            console.error('Error assigning work:', error);
+            setMessage('Error al asignar trabajo');
         }
     };
 

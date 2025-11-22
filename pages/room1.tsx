@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import supabase from '@/lib/db';
 
 export default function Room1() {
     const [plate, setPlate] = useState('');
@@ -11,21 +12,26 @@ export default function Room1() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch('/api/vehicles', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ plate, model, arrival_description: description }),
-            });
-            if (res.ok) {
-                setMessage('Vehículo registrado correctamente');
-                setPlate('');
-                setModel('');
-                setDescription('');
-            } else {
-                setMessage('Error al registrar vehículo');
-            }
+            const { data, error } = await supabase
+                .from('vehicles')
+                .insert([{
+                    plate,
+                    model,
+                    arrival_description: description,
+                    status: 'arrived'
+                }])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            setMessage('Vehículo registrado correctamente');
+            setPlate('');
+            setModel('');
+            setDescription('');
         } catch (error) {
-            setMessage('Error de conexión');
+            console.error('Error registering vehicle:', error);
+            setMessage('Error al registrar vehículo');
         }
     };
 

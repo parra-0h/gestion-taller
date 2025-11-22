@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import supabase from '@/lib/db';
 
 interface Work {
     id: number;
@@ -20,14 +21,28 @@ export default function MonitorBay() {
     const fetchWork = async () => {
         if (!bay) return;
         try {
-            const res = await fetch(`/api/works?bay=${bay}`);
-            if (!res.ok) {
-                setWork(null);
-                return;
-            }
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-                setWork(data[0]);
+            const { data, error } = await supabase
+                .from('works')
+                .select(`
+                    *,
+                    vehicles (
+                        plate,
+                        model
+                    )
+                `)
+                .eq('assigned_bay', bay)
+                .neq('status', 'done')
+                .limit(1);
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                const workData = data[0] as any;
+                setWork({
+                    ...workData,
+                    plate: workData.vehicles?.plate,
+                    model: workData.vehicles?.model,
+                });
             } else {
                 setWork(null);
             }
@@ -46,14 +61,29 @@ export default function MonitorBay() {
     const handleComplete = async () => {
         if (!work || !confirm('¿Marcar trabajo como terminado?')) return;
         try {
-            await fetch('/api/works', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: work.id, status: 'done' }),
-            });
+            // Update work status
+            const { data, error } = await supabase
+                .from('works')
+                .update({ status: 'done' })
+                .eq('id', work.id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            if (data) {
+                // Update vehicle status to completed
+                const { error: vehicleError } = await supabase
+                    .from('vehicles')
+                    .update({ status: 'completed' })
+                    .eq('id', data.vehicle_id);
+
+                if (vehicleError) throw vehicleError;
+            }
+
             fetchWork();
         } catch (error) {
-            console.error(error);
+            console.error('Error completing work:', error);
         }
     };
 
@@ -107,8 +137,8 @@ export default function MonitorBay() {
                             {/* Estado */}
                             <div className="flex items-center justify-center gap-4 mb-8">
                                 <div className={`px-8 py-4 rounded-full text-2xl font-bold ${work.status === 'pending' ? 'bg-yellow-600' :
-                                        work.status === 'in_progress' ? 'bg-blue-600' :
-                                            'bg-green-600'
+                                    work.status === 'in_progress' ? 'bg-blue-600' :
+                                        'bg-green-600'
                                     }`}>
                                     {work.status === 'pending' ? '⏳ PENDIENTE' :
                                         work.status === 'in_progress' ? '🔧 EN PROGRESO' :

@@ -21,7 +21,6 @@ export default function Home() {
                 <div className="text-center mb-12 space-y-4">
                     <div className="inline-block mb-4">
                         <div className="flex items-center justify-center gap-3 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full border border-white/20">
-                            <span className="text-4xl">🔧</span>
                             <span className="text-white/90 font-semibold text-sm uppercase tracking-wider">Sistema Profesional</span>
                         </div>
                     </div>

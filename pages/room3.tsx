@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import supabase from '@/lib/db';
 
 interface Work {
     id: number;
@@ -17,20 +18,27 @@ export default function Room3() {
 
     const fetchWorks = async () => {
         try {
-            const res = await fetch('/api/works');
-            if (!res.ok) {
-                console.error('Failed to fetch works:', res.status);
-                setWorks([]);
-                return;
-            }
-            const data = await res.json();
-            // Ensure data is an array
-            if (Array.isArray(data)) {
-                setWorks(data);
-            } else {
-                console.error('Invalid data format:', data);
-                setWorks([]);
-            }
+            const { data, error } = await supabase
+                .from('works')
+                .select(`
+                    *,
+                    vehicles (
+                        plate,
+                        model
+                    )
+                `);
+
+            if (error) throw error;
+
+            // Flatten the response to match the original structure
+            const flattenedData = data?.map((work: any) => ({
+                ...work,
+                plate: work.vehicles?.plate,
+                model: work.vehicles?.model,
+                vehicles: undefined
+            })) || [];
+
+            setWorks(flattenedData);
         } catch (error) {
             console.error('Error fetching works:', error);
             setWorks([]);
@@ -46,14 +54,29 @@ export default function Room3() {
     const handleComplete = async (id: number) => {
         if (!confirm('¿Marcar trabajo como terminado?')) return;
         try {
-            await fetch('/api/works', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, status: 'done' }),
-            });
+            // Update work status
+            const { data, error } = await supabase
+                .from('works')
+                .update({ status: 'done' })
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            if (data) {
+                // Update vehicle status to completed
+                const { error: vehicleError } = await supabase
+                    .from('vehicles')
+                    .update({ status: 'completed' })
+                    .eq('id', data.vehicle_id);
+
+                if (vehicleError) throw vehicleError;
+            }
+
             fetchWorks();
         } catch (error) {
-            console.error(error);
+            console.error('Error completing work:', error);
         }
     };
 
@@ -72,7 +95,7 @@ export default function Room3() {
 
                 <div className="bg-blue-50 dark:bg-blue-900 border-l-4 border-blue-500 p-6 mb-8 rounded">
                     <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                        📺 Instrucciones para Monitores
+                        Instrucciones para Monitores
                     </h2>
                     <p className="text-blue-800 dark:text-blue-200 mb-2">
                         Abre cada enlace en un monitor diferente y presiona <kbd className="px-2 py-1 bg-blue-200 dark:bg-blue-800 rounded text-sm font-mono">F11</kbd> para pantalla completa.
@@ -106,8 +129,8 @@ export default function Room3() {
                                             </div>
                                             <div className="mt-3">
                                                 <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${work.status === 'pending' ? 'bg-yellow-200 text-yellow-800' :
-                                                        work.status === 'in_progress' ? 'bg-blue-200 text-blue-800' :
-                                                            'bg-green-200 text-green-800'
+                                                    work.status === 'in_progress' ? 'bg-blue-200 text-blue-800' :
+                                                        'bg-green-200 text-green-800'
                                                     }`}>
                                                     {work.status === 'pending' ? 'Pendiente' :
                                                         work.status === 'in_progress' ? 'En Progreso' :
@@ -127,7 +150,7 @@ export default function Room3() {
                                             target="_blank"
                                             className="block w-full mt-4 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white text-center rounded-lg font-bold text-lg transition-all transform hover:scale-105 shadow-lg"
                                         >
-                                            🖥️ Abrir Monitor {bay}
+                                            Abrir Monitor {bay}
                                         </a>
                                     </Link>
 
@@ -141,7 +164,7 @@ export default function Room3() {
                 </div>
 
                 <div className="mt-8 bg-gray-100 dark:bg-gray-800 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">💡 Consejos</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Consejos</h3>
                     <ul className="space-y-2 text-gray-700 dark:text-gray-300">
                         <li>• Cada monitor se actualiza automáticamente cada 5 segundos</li>
                         <li>• Usa <kbd className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-sm font-mono">F11</kbd> para pantalla completa</li>
