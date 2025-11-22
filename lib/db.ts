@@ -1,11 +1,8 @@
-import { Pool } from 'pg';
+import { createClient } from '@supabase/supabase-js';
 
-const pool = new Pool({
-    user: 'taller_user',
-    host: 'localhost',
-    database: 'taller_mecanico',
-    password: 'password',
-    port: 5432,
-});
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export default pool;
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export default supabase;

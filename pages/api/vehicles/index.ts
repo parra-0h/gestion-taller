@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import pool from '@/lib/db';
+import supabase from '@/lib/db';
 
 export default async function handler(
     req: NextApiRequest,
@@ -8,18 +8,19 @@ export default async function handler(
     if (req.method === 'GET') {
         try {
             const { status } = req.query;
-            let query = 'SELECT * FROM vehicles';
-            const params = [];
+            let query = supabase
+                .from('vehicles')
+                .select('*')
+                .order('created_at', { ascending: false });
 
             if (status) {
-                query += ' WHERE status = $1';
-                params.push(status);
+                query = query.eq('status', status);
             }
 
-            query += ' ORDER BY created_at DESC';
+            const { data, error } = await query;
 
-            const { rows } = await pool.query(query, params);
-            res.status(200).json(rows);
+            if (error) throw error;
+            res.status(200).json(data);
         } catch (error) {
             console.error(error);
             res.status(500).json({ error: 'Database error' });
@@ -27,13 +28,19 @@ export default async function handler(
     } else if (req.method === 'POST') {
         try {
             const { plate, model, arrival_description } = req.body;
-            const query = `
-        INSERT INTO vehicles (plate, model, arrival_description, status)
-        VALUES ($1, $2, $3, 'arrived')
-        RETURNING *
-      `;
-            const { rows } = await pool.query(query, [plate, model, arrival_description]);
-            res.status(201).json(rows[0]);
+            const { data, error } = await supabase
+                .from('vehicles')
+                .insert([{
+                    plate,
+                    model,
+                    arrival_description,
+                    status: 'arrived'
+                }])
+                .select()
+                .single();
+
+            if (error) throw error;
+            res.status(201).json(data);
         } catch (error) {
             console.error(error);
             res.status(500).json({ error: 'Database error' });
