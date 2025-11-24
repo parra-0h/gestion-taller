@@ -2,9 +2,7 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/monitor/[bay]": "pages/monitor/[bay].js",
-  "/api/works": "pages/api/works.js",
-  "/api/vehicles": "pages/api/vehicles.js",
-  "/room2": "pages/room2.js",
-  "/room3": "pages/room3.js"
+  "/": "pages/index.js",
+  "/room3": "pages/room3.js",
+  "/monitor/[bay]": "pages/monitor/[bay].js"
 }

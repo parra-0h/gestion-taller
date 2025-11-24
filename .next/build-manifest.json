@@ -35,11 +35,6 @@
       "static/chunks/main.js",
       "static/chunks/pages/monitor/[bay].js"
     ],
-    "/room2": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/room2.js"
-    ],
     "/room3": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
